@@ -3,4 +3,4 @@ srun -K  --job-name=GNU --partition=RTXA6000,RTXA6000-EI --gpus=1 --cpus-per-tas
           --container-workdir=`pwd` \
           --container-mounts=/netscratch:/netscratch,/ds:/ds,`pwd`:`pwd` \
           --export="NCCL_SOCKET_IFNAME=bond,NCCL_IB_HCA=mlx5" \
-          install.sh scripts_test.sh "$@" &
+          install.sh main.py "$@" &
