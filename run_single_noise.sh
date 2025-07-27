@@ -1,4 +1,3 @@
-
 mode=single
 dataset=cifar10
 num_epochs=100
@@ -13,7 +12,7 @@ activation=silu
 ds_percentage=0.1
 grid=5
 degree=3
-noise=0.0
+noise=0.1
 
 for model in resnet18 resnet34 resnet50 vgg16 densenet121 densenet169 densenet201 densenet161 mobilenet_v2 googlenet
 do 
@@ -39,4 +38,5 @@ do
             --classifier $classifier 
     done
 done
+
 

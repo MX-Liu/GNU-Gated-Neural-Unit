@@ -1,4 +1,3 @@
-
 mode=single
 dataset=cifar10
 num_epochs=100
@@ -10,7 +9,7 @@ classifier=mlp
 alpha1=1.0
 alpha2=0.0
 activation=silu
-ds_percentage=0.1
+ds_percentage=0.5
 grid=5
 degree=3
 noise=0.0
@@ -39,4 +38,5 @@ do
             --classifier $classifier 
     done
 done
+
 
