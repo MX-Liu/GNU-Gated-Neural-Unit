@@ -70,7 +70,7 @@ if __name__ == "__main__":
     hp = []
 
     # data_name_list = ["dg", "uschad", "pamap2", "rw", "skodar", "dsads", "hapt", "oppo", "wisdm"]
-    model_list = ['resnet18','resnet34', 'resnet50', 'vgg11', 'vgg16', 'vgg19','densenet121', 'densenet169', 'densenet201', 'densenet161', 'mobilenet_v2', 'googlenet']
+    model_list = ['resnet18','resnet34', 'resnet50', 'vgg11', 'vgg16', 'densenet121', 'densenet201', 'densenet161', 'mobilenet_v2', 'googlenet']
 
     
     JOBS_PER_GPU = len(model_list)
