@@ -10,22 +10,68 @@ from torch.utils.data import Subset
 import numpy as np
 
 # 1. Define the custom transform class for adding noise
+# class AddGaussianNoise(object):
+#     def __init__(self, mean=0., std=0.1):
+#         self.std = std
+#         self.mean = mean
+        
+#     def __call__(self, tensor):
+#         noise = torch.randn(tensor.size()) * self.std + self.mean
+#         noisy_tensor = tensor + noise
+#         return torch.clamp(noisy_tensor, 0., 1.)
 class AddGaussianNoise(object):
-    def __init__(self, mean=0., std=0.1):
+    """
+    Adds Gaussian noise to a PyTorch tensor.
+    
+    This class can produce repeatable results by providing a seed to its
+    internal random number generator.
+    """
+    def __init__(self, mean: float = 0., std: float = 0.0, seed=42):
+        """
+        Args:
+            mean (float): The mean of the Gaussian distribution.
+            std (float): The standard deviation of the Gaussian distribution.
+            seed (int, optional): A random seed for the generator. If provided,
+                                  the noise added will be the same every time.
+                                  Defaults to None.
+        """
         self.std = std
         self.mean = mean
+        self.generator = None
+        if seed is not None:
+            self.generator = torch.Generator().manual_seed(seed)
         
-    def __call__(self, tensor):
-        noise = torch.randn(tensor.size()) * self.std + self.mean
+    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
+        """
+        Applies the noise transformation.
+
+        Args:
+            tensor (torch.Tensor): The input tensor to which noise will be added.
+
+        Returns:
+            torch.Tensor: The tensor with added Gaussian noise.
+        """
+        # Use the internal generator if it exists, otherwise use PyTorch's global RNG
+        noise = torch.randn(
+            tensor.size(), 
+            generator=self.generator
+        ) * self.std + self.mean
+        
         noisy_tensor = tensor + noise
         return torch.clamp(noisy_tensor, 0., 1.)
+
+    def __repr__(self) -> str:
+        # Get the seed if the generator exists
+        seed_info = f", seed={self.generator.initial_seed()}" if self.generator else ""
+        return f"{self.__class__.__name__}(mean={self.mean}, std={self.std}{seed_info})"
     
-    
-def get_subset(dataset, percentage):
+def get_subset(dataset, percentage,seed=42):
+    rng = np.random.default_rng(seed)
     num_items = len(dataset)
     indices = list(range(num_items))
     split = int(np.floor(percentage * num_items))
-    np.random.shuffle(indices)
+    # np.random.shuffle(indices)
+    rng.shuffle(indices)
     subset_indices = indices[:split]
     return Subset(dataset, subset_indices)
 
@@ -47,7 +93,7 @@ def get_iris_dataloaders(batch_size, seed, generator):
     test_loader = DataLoader(IrisDataset(X_test, y_test), batch_size=batch_size, shuffle=False)
     return train_loader, test_loader, {'input_size': X_train.shape[1], 'num_classes': len(iris.target_names), 'class_names': iris.target_names}
 
-def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning, noise_level=0.0,daset_percentage=1.0):
+def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning, noise_level=0.0,daset_percentage=1.0,seed=42):
 
     if transfer_learning:
         # transform = transforms.Compose([
@@ -59,7 +105,7 @@ def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning
         transforms.ToTensor()
     ]
         if noise_level > 0:
-            transform_list.append(AddGaussianNoise(mean=0., std=noise_level))
+            transform_list.append(AddGaussianNoise(mean=0., std=noise_level, seed=seed))
             # Normalization should be the last step
         transform_list.append(
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -91,8 +137,8 @@ def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning
     
     # Apply dataset percentage
     if daset_percentage < 1.0:
-        train_dset = get_subset(train_dset, daset_percentage)
-        test_dset = get_subset(test_dset, daset_percentage)
+        train_dset = get_subset(train_dset, daset_percentage, seed)
+        test_dset = get_subset(test_dset, daset_percentage, seed)
 
     train_loader = DataLoader(train_dset, batch_size=batch_size, shuffle=True, generator=generator)
     test_loader = DataLoader(test_dset, batch_size=batch_size, shuffle=False)
@@ -100,5 +146,5 @@ def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning
 
 def get_data(dataset_name, batch_size, seed, generator, transfer_learning=False, noise_level=0.0, daset_percentage=1.0):
     if dataset_name == 'iris': return get_iris_dataloaders(batch_size, seed, generator)
-    elif dataset_name in ['mnist', 'cifar10']: return get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning, noise_level, daset_percentage)
+    elif dataset_name in ['mnist', 'cifar10']: return get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning, noise_level, daset_percentage, seed)
     else: raise ValueError(f"Dataset '{dataset_name}' not supported.")
