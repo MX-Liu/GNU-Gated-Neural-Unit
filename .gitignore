@@ -9,6 +9,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 data/
+output/
 logs/
 logs_cluster/
 build/
