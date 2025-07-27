@@ -9,16 +9,17 @@ import torchvision.datasets as datasets
 from torch.utils.data import Subset
 import numpy as np
 
+# 1. Define the custom transform class for adding noise
 class AddGaussianNoise(object):
-    def __init__(self, mean=0.0, std=0.1):
-        self.mean = mean
+    def __init__(self, mean=0., std=0.1):
         self.std = std
-
+        self.mean = mean
+        
     def __call__(self, tensor):
-        return tensor + torch.randn(tensor.size()) * self.std + self.mean
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}(mean={self.mean}, std={self.std})"
+        noise = torch.randn(tensor.size()) * self.std + self.mean
+        noisy_tensor = tensor + noise
+        return torch.clamp(noisy_tensor, 0., 1.)
+    
     
 def get_subset(dataset, percentage):
     num_items = len(dataset)
@@ -47,21 +48,36 @@ def get_iris_dataloaders(batch_size, seed, generator):
     return train_loader, test_loader, {'input_size': X_train.shape[1], 'num_classes': len(iris.target_names), 'class_names': iris.target_names}
 
 def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning, noise_level=0.0,daset_percentage=1.0):
-    transform_list = []
+
     if transfer_learning:
-        transform = transforms.Compose([
-            transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        # transform = transforms.Compose([
+        #     transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor(),
+        #     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        transform_list = [
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor()
+    ]
+        if noise_level > 0:
+            transform_list.append(AddGaussianNoise(mean=0., std=noise_level))
+            # Normalization should be the last step
+        transform_list.append(
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        )
+        transform = transforms.Compose(transform_list)
+        
     else:
-        transform_list = [transforms.ToTensor()]
-        if dataset_name == 'mnist': transform_list.insert(0, transforms.Grayscale(num_output_channels=3))
+        transform_list = []
+        if dataset_name == 'mnist':
+            transform_list.append(transforms.Grayscale(num_output_channels=3))
+            
+        transform_list.append(transforms.ToTensor())
+        
+        if noise_level > 0:
+            transform_list.append(AddGaussianNoise(mean=0., std=noise_level))
+        
         transform = transforms.Compose(transform_list)
 
-    # Add noise to the transformation list
-    if noise_level > 0:
-        noise_transform = AddGaussianNoise(mean=0.0, std=noise_level)
-        transform_list.append(noise_transform)
-        transform = transforms.Compose(transform_list)
 
     if dataset_name == 'mnist':
         train_dset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)

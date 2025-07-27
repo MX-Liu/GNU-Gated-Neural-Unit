@@ -175,7 +175,7 @@ if __name__ == '__main__':
     parser.add_argument('--ds_percentage', type=float, default=0.1, help='Percentage of dataset to use for training (0.0 to 1.0).')
     parser.add_argument('--grid', type=int, default=5, help='Grid size for MLP-KAN classifier.')
     parser.add_argument('--degree', type=int, default=3, help='Degree for polynomial features in MLP-KAN classifier.')
-    parser.add_argument('--noise', type=float, default=0.0, help='Noise level for datasets.')
+    parser.add_argument('--noise', type=float, default=0.1, help='Noise level for datasets.')
     args = parser.parse_args()
     
     folder_name = 'logs'
