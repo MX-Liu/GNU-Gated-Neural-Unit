@@ -26,6 +26,7 @@ def hp_tuning(hp):
     # TODO REPLACE BY YOUR HYPERPARAMETERS
 
     command = ['python main.py',
+                '--model', hp['model'],
                 '--dataset', hp['dataset'],
                 '--num_epochs', str(hp['num_epochs']),
                 '--seed', str(hp['seed']),
@@ -49,21 +50,20 @@ def hp_tuning(hp):
 
 if __name__ == "__main__":
 
-    # Reproducibility: Ensure subprocesses have the same seed
     
     parser = argparse.ArgumentParser(description="PyTorch Classification Template")
     
     parser.add_argument('--dataset', type=str, default='cifar10', choices=['iris', 'mnist', 'cifar10'])
-    parser.add_argument('--num_epochs', type=str, default="20", help='Number of training epochs')
-    parser.add_argument('--seed', type=str, default="42")
+    parser.add_argument('--num_epochs', type=int, default=20, help='Number of training epochs')
+    parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--classifier', type=str, default='mlp', choices=['linear', 'mlp', 'kan', 'gnu'], help='Classifier type for MLP-KAN.')
-    parser.add_argument('--alpha1', type=str, default="0.5", help='Alpha value for MLP-KAN classifier.')
-    parser.add_argument('--alpha2', type=str, default="0.5", help='Alpha value for MLP-KAN classifier.')
+    parser.add_argument('--alpha1', type=float, default=0.5, help='Alpha value for MLP-KAN classifier.')
+    parser.add_argument('--alpha2', type=float, default=0.5, help='Alpha value for MLP-KAN classifier.')
     parser.add_argument('--activation', type=str, default='relu', choices=['relu', 'gelu','identity'], help='Activation function for MLP-KAN classifier.')
-    parser.add_argument('--ds_percentage', type=str, default="1.0", help='Percentage of dataset to use for training (0.0 to 1.0).')
-    parser.add_argument('--grid', type=str, default="5", help='Grid size for MLP-KAN classifier.')
-    parser.add_argument('--degree', type=str, default="3", help='Degree for polynomial features in MLP-KAN classifier.')
-    parser.add_argument('--noise', type=str, default="0.0", help='Noise level for datasets.')
+    parser.add_argument('--ds_percentage', type=float, default=1.0, help='Percentage of dataset to use for training (0.0 to 1.0).')
+    parser.add_argument('--grid', type=int, default=5, help='Grid size for MLP-KAN classifier.')
+    parser.add_argument('--degree', type=int, default=3, help='Degree for polynomial features in MLP-KAN classifier.')
+    parser.add_argument('--noise', type=float, default=0.0, help='Noise level for datasets.')
     args = parser.parse_args()
     
     
@@ -80,6 +80,7 @@ if __name__ == "__main__":
             'model': model_list[i],
             "seed": args.seed,
             "dataset": args.dataset,
+            "num_epochs": args.num_epochs,
             "classifier": args.classifier,
             "alpha1": args.alpha1,
             "alpha2": args.alpha2,
