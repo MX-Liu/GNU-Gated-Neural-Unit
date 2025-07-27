@@ -166,7 +166,7 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', type=float, default=1e-3, help='Weight decay for optimizer')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--no-transfer-learning', action='store_false', dest='transfer_learning', help="Disable transfer learning.")
-    parser.add_argument('--fine-tune', action='store_true', help="Enable fine-tuning of pre-trained layers.")
+    parser.add_argument('--fine-tune', action='store_false', help="Enable fine-tuning of pre-trained layers.")
     # parser.add_argument('--hidden-dims', type=int, nargs='+', default=[128], help='List of hidden dimensions for MLP tuning.')
     parser.add_argument('--classifier', type=str, default='mlp', choices=['linear', 'mlp', 'kan', 'gnu'], help='Classifier type for MLP-KAN.')
     parser.add_argument('--alpha1', type=float, default=0.5, help='Alpha value for MLP-KAN classifier.')
