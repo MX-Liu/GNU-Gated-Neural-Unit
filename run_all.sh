@@ -1,0 +1,1 @@
+./run.sh --classifier mlp --num_epochs 20 
