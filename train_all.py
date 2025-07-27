@@ -59,7 +59,7 @@ if __name__ == "__main__":
     parser.add_argument('--classifier', type=str, default='mlp', choices=['linear', 'mlp', 'kan', 'gnu'], help='Classifier type for MLP-KAN.')
     parser.add_argument('--alpha1', type=float, default=0.5, help='Alpha value for MLP-KAN classifier.')
     parser.add_argument('--alpha2', type=float, default=0.5, help='Alpha value for MLP-KAN classifier.')
-    parser.add_argument('--activation', type=str, default='relu', choices=['relu', 'gelu','identity'], help='Activation function for MLP-KAN classifier.')
+    parser.add_argument('--activation', type=str, default='relu', choices=['relu', 'silu','identity'], help='Activation function for MLP-KAN classifier.')
     parser.add_argument('--ds_percentage', type=float, default=1.0, help='Percentage of dataset to use for training (0.0 to 1.0).')
     parser.add_argument('--grid', type=int, default=5, help='Grid size for MLP-KAN classifier.')
     parser.add_argument('--degree', type=int, default=3, help='Degree for polynomial features in MLP-KAN classifier.')
