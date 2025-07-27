@@ -10,7 +10,7 @@
 
 # --- Job Array Configuration ---
 # 10 models * 3 classifiers = 30 tasks total. Array indices are 0-29.
-#SBATCH --array=0-29
+#SBATCH --array=0-29%10
 
 # --- Static Parameters ---
 # These parameters are the same for all jobs in the array
