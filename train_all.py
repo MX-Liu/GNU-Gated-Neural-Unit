@@ -55,7 +55,7 @@ if __name__ == "__main__":
     
     parser.add_argument('--dataset', type=str, default='cifar10', choices=['iris', 'mnist', 'cifar10'])
     parser.add_argument('--num_epochs', type=str, default="20", help='Number of training epochs')
-    parser.add_argument('--seed', type=str, default=42)
+    parser.add_argument('--seed', type=str, default="42")
     parser.add_argument('--classifier', type=str, default='mlp', choices=['linear', 'mlp', 'kan', 'gnu'], help='Classifier type for MLP-KAN.')
     parser.add_argument('--alpha1', type=str, default="0.5", help='Alpha value for MLP-KAN classifier.')
     parser.add_argument('--alpha2', type=str, default="0.5", help='Alpha value for MLP-KAN classifier.')
