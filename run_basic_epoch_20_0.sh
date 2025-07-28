@@ -1,6 +1,6 @@
 mode=single
 dataset=cifar10
-num_epochs=100
+num_epochs=20
 batch_size=32
 learning_rate=2e-3
 weight_decay=1e-3
