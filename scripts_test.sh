@@ -7,8 +7,8 @@ learning_rate=2e-3
 weight_decay=1e-3
 seed=42
 classifier=mlp
-alpha1=1.0
-alpha2=0.0
+alpha1=0.5
+alpha2=0.5
 activation=silu
 ds_percentage=0.1
 grid=5
@@ -17,7 +17,7 @@ noise=0.0
 
 for model in resnet18 resnet34 resnet50 vgg16 densenet121 densenet169 densenet201 densenet161 mobilenet_v2 googlenet
 do 
-    for classifier in mlp kan gnu
+    for classifier in gnu
     do
         echo "Running model: $model with classifier: $classifier"
         python -u main.py \

@@ -12,6 +12,7 @@ data/
 output/
 logs/
 logs_cluster/
+logs_cluster1/
 build/
 develop-eggs/
 dist/
