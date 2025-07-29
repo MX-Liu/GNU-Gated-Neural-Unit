@@ -71,7 +71,7 @@ def get_subset(dataset, percentage,seed=42):
     indices = list(range(num_items))
     split = int(np.floor(percentage * num_items))
     # np.random.shuffle(indices)
-    rng.shuffle(indices)
+    # rng.shuffle(indices)
     subset_indices = indices[:split]
     return Subset(dataset, subset_indices)
 
@@ -104,6 +104,8 @@ def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning
         transforms.CenterCrop(224),
         transforms.ToTensor()
     ]
+        
+
         if noise_level > 0:
             transform_list.append(AddGaussianNoise(mean=0., std=noise_level, seed=seed))
             # Normalization should be the last step
@@ -133,6 +135,14 @@ def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning
         train_dset = datasets.CIFAR10(root='./data', train=True, transform=transform, download=True)
         test_dset = datasets.CIFAR10(root='./data', train=False, transform=transform, download=True)
         num_classes = 10
+    elif dataset_name == 'cifar100':
+        train_dset = datasets.CIFAR100(root='./data', train=True, transform=transform, download=True)
+        test_dset = datasets.CIFAR100(root='./data', train=False, transform=transform, download=True)
+        num_classes = 100
+    elif dataset_name == 'stl10':
+        train_dset = datasets.STL10(root='./data', split='train', transform=transform, download=True)
+        test_dset = datasets.STL10(root='./data', split='test', transform=transform, download=True)
+        num_classes = 10
     else: raise ValueError(f"Unknown image dataset: {dataset_name}")
     
     # Apply dataset percentage
@@ -145,6 +155,8 @@ def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning
     return train_loader, test_loader, {'num_classes': num_classes, 'class_names': [str(i) for i in range(num_classes)]}
 
 def get_data(dataset_name, batch_size, seed, generator, transfer_learning=False, noise_level=0.0, daset_percentage=1.0):
-    if dataset_name == 'iris': return get_iris_dataloaders(batch_size, seed, generator)
-    elif dataset_name in ['mnist', 'cifar10']: return get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning, noise_level, daset_percentage, seed)
+    if dataset_name == 'iris': 
+        return get_iris_dataloaders(batch_size, seed, generator)
+    elif dataset_name in ['mnist', 'cifar10','cifar100','stl10']: 
+        return get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning, noise_level, daset_percentage, seed)
     else: raise ValueError(f"Dataset '{dataset_name}' not supported.")

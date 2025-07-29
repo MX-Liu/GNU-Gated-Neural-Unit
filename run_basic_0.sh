@@ -1,18 +1,18 @@
 mode=single
-dataset=cifar10
+dataset=cifar100
 num_epochs=100
 batch_size=32
 learning_rate=2e-3
 weight_decay=1e-3
-seed=0
 classifier=mlp
 alpha1=0.5
 alpha2=0.5
 activation=silu
 ds_percentage=0.5
-grid=5
+grid=10
 degree=3
 noise=0.0
+seed=0
 
 for model in resnet18 resnet34 resnet50 vgg16 densenet121 densenet169 densenet201 densenet161 mobilenet_v2 googlenet
 do 
@@ -35,7 +35,8 @@ do
             --degree $degree \
             --noise $noise \
             --learning_rate $learning_rate \
-            --classifier $classifier 
+            --classifier $classifier \
+            --projection
     done
 done
 
