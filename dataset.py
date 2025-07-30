@@ -9,16 +9,126 @@ import torchvision.datasets as datasets
 from torch.utils.data import Subset
 import numpy as np
 
-# 1. Define the custom transform class for adding noise
-# class AddGaussianNoise(object):
-#     def __init__(self, mean=0., std=0.1):
-#         self.std = std
-#         self.mean = mean
+from PIL import Image
+import os
+import requests
+import zipfile
+
+class TinyImageNet(Dataset):
+    """
+    Custom Dataset class for Tiny ImageNet.
+    Handles downloading, parsing, and loading the data.
+    """
+    url = 'http://cs231n.stanford.edu/tiny-imagenet-200.zip'
+    filename = 'tiny-imagenet-200.zip'
+    dataset_folder = 'tiny-imagenet-200'
+
+    def __init__(self, root, split='train', transform=None, download=False):
+        self.root = os.path.expanduser(root)
+        self.split = split
+        self.transform = transform
+        self.data_path = os.path.join(self.root, self.dataset_folder)
+
+        if download:
+            self.download()
+
+        if not os.path.isdir(self.data_path):
+            raise RuntimeError('Dataset not found or corrupted. You can use download=True to download it')
+
+        self.class_to_idx, self.idx_to_class, self.class_names = self._get_class_info()
+        self.image_paths, self.labels = self._load_data()
+
+    def _get_class_info(self):
+        wnids_path = os.path.join(self.data_path, 'wnids.txt')
+        words_path = os.path.join(self.data_path, 'words.txt')
+
+        with open(wnids_path, 'r') as f:
+            wnids = [x.strip() for x in f]
         
-#     def __call__(self, tensor):
-#         noise = torch.randn(tensor.size()) * self.std + self.mean
-#         noisy_tensor = tensor + noise
-#         return torch.clamp(noisy_tensor, 0., 1.)
+        wnids.sort()
+        class_to_idx = {wnid: i for i, wnid in enumerate(wnids)}
+        idx_to_class = {i: wnid for i, wnid in enumerate(wnids)}
+
+        class_names = {}
+        with open(words_path, 'r') as f:
+            for line in f:
+                wnid, name = line.strip().split('\t', 1)
+                if wnid in class_to_idx:
+                    class_names[wnid] = name
+        
+        # Sort class names by index
+        sorted_class_names = [class_names[idx_to_class[i]] for i in range(len(wnids))]
+
+        return class_to_idx, idx_to_class, sorted_class_names
+
+    def _load_data(self):
+        image_paths = []
+        labels = []
+
+        if self.split == 'train':
+            train_path = os.path.join(self.data_path, 'train')
+            for class_folder in os.listdir(train_path):
+                class_path = os.path.join(train_path, class_folder, 'images')
+                if os.path.isdir(class_path):
+                    class_idx = self.class_to_idx[class_folder]
+                    for img_name in os.listdir(class_path):
+                        img_path = os.path.join(class_path, img_name)
+                        image_paths.append(img_path)
+                        labels.append(class_idx)
+        elif self.split == 'val':
+            val_path = os.path.join(self.data_path, 'val')
+            annotations_path = os.path.join(val_path, 'val_annotations.txt')
+            val_images_path = os.path.join(val_path, 'images')
+            
+            with open(annotations_path, 'r') as f:
+                for line in f:
+                    parts = line.strip().split('\t')
+                    img_name, class_id = parts[0], parts[1]
+                    img_path = os.path.join(val_images_path, img_name)
+                    image_paths.append(img_path)
+                    labels.append(self.class_to_idx[class_id])
+        else:
+            raise ValueError(f"Invalid split '{self.split}'. Must be 'train' or 'val'.")
+
+        return image_paths, labels
+
+    def download(self):
+        zip_path = os.path.join(self.root, self.filename)
+        if os.path.exists(self.data_path):
+            print('Files already downloaded and verified.')
+            return
+
+        # Download the zip file
+        print(f"Downloading {self.url} to {zip_path}")
+        response = requests.get(self.url, stream=True)
+        response.raise_for_status()
+        with open(zip_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+        
+        # Extract the zip file
+        print(f"Extracting {zip_path} to {self.root}")
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(self.root)
+        
+        # Clean up the zip file
+        os.remove(zip_path)
+        print("Download and extraction complete.")
+
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        img_path = self.image_paths[idx]
+        label = self.labels[idx]
+        image = Image.open(img_path).convert('RGB')
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
+
 class AddGaussianNoise(object):
     """
     Adds Gaussian noise to a PyTorch tensor.
@@ -115,7 +225,10 @@ def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning
         transform = transforms.Compose(transform_list)
         
     else:
-        transform_list = []
+        if dataset_name == 'tiny_imagenet':
+            transform_list = [transforms.Resize((64, 64)), transforms.ToTensor()]
+        else:
+            transform_list = []
         if dataset_name == 'mnist':
             transform_list.append(transforms.Grayscale(num_output_channels=3))
             
@@ -131,18 +244,31 @@ def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning
         train_dset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
         test_dset = datasets.MNIST(root='./data', train=False, transform=transform, download=True)
         num_classes = 10
+        class_names = [str(i) for i in range(num_classes)]
     elif dataset_name == 'cifar10':
         train_dset = datasets.CIFAR10(root='./data', train=True, transform=transform, download=True)
         test_dset = datasets.CIFAR10(root='./data', train=False, transform=transform, download=True)
         num_classes = 10
+        class_names = [str(i) for i in range(num_classes)]
     elif dataset_name == 'cifar100':
         train_dset = datasets.CIFAR100(root='./data', train=True, transform=transform, download=True)
         test_dset = datasets.CIFAR100(root='./data', train=False, transform=transform, download=True)
         num_classes = 100
+        class_names = [str(i) for i in range(num_classes)]
     elif dataset_name == 'stl10':
         train_dset = datasets.STL10(root='./data', split='train', transform=transform, download=True)
         test_dset = datasets.STL10(root='./data', split='test', transform=transform, download=True)
         num_classes = 10
+        class_names = [str(i) for i in range(num_classes)]
+
+    elif dataset_name == 'tiny_imagenet':
+        # Use the custom TinyImageNet class
+        train_dset = TinyImageNet(root='./data', split='train', transform=transform, download=True)
+        # The test set in TinyImageNet is called 'val'
+        test_dset = TinyImageNet(root='./data', split='val', transform=transform, download=True)
+        num_classes = 200
+        # Get class names from our custom dataset object
+        class_names = train_dset.class_names
     else: raise ValueError(f"Unknown image dataset: {dataset_name}")
     
     # Apply dataset percentage
@@ -157,6 +283,6 @@ def get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning
 def get_data(dataset_name, batch_size, seed, generator, transfer_learning=False, noise_level=0.0, daset_percentage=1.0):
     if dataset_name == 'iris': 
         return get_iris_dataloaders(batch_size, seed, generator)
-    elif dataset_name in ['mnist', 'cifar10','cifar100','stl10']: 
+    elif dataset_name in ['mnist', 'cifar10','cifar100','stl10','tiny_imagenet']: 
         return get_image_dataloaders(dataset_name, batch_size, generator, transfer_learning, noise_level, daset_percentage, seed)
     else: raise ValueError(f"Dataset '{dataset_name}' not supported.")

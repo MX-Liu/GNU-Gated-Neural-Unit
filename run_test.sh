@@ -8,15 +8,15 @@ classifier=mlp
 alpha1=0.5
 alpha2=0.5
 activation=silu
-ds_percentage=1.0
+ds_percentage=0.5
 grid=10
 degree=3
 noise=0.0
-seed=1
+seed=0
 
-for model in resnet18 resnet34 resnet50 vgg16 densenet121 densenet169 densenet201 densenet161 mobilenet_v2 googlenet
+for model in resnet18 
 do 
-    for classifier in mlp kan gnu
+    for classifier in mlp 
     do
         echo "Running model: $model with classifier: $classifier"
         ./run_single.sh \

@@ -271,7 +271,7 @@ def run_hyperparameter_sweep(args, logger):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="PyTorch Classification Template")
     parser.add_argument('--mode', type=str, default='single', choices=['single', 'tune'], help='Execution mode: single experiment or hyperparameter tuning.')
-    parser.add_argument('--dataset', type=str, default='cifar100', choices=['iris', 'mnist', 'cifar10','cifar100','stl10'])
+    parser.add_argument('--dataset', type=str, default='cifar100', choices=['iris', 'mnist', 'cifar10','cifar100','stl10','tiny_imagenet'])
     parser.add_argument('--model', type=str, default='resnet18', choices=['mlp', 'simple_cnn', 'resnet18','resnet34', 'resnet50', 'vgg11', 'vgg16', 'vgg19','densenet121', 'densenet169', 'densenet201', 'densenet161', 'mobilenet_v2', 'googlenet'], help='Model architecture to use.')
     parser.add_argument('--num_epochs', type=int, default=100, help='Number of training epochs')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size')
