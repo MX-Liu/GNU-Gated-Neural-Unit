@@ -297,7 +297,7 @@ if __name__ == '__main__':
     folder_name = 'logs'
     os.makedirs(folder_name, exist_ok=True)
     if args.projection: 
-        log_file = f"{folder_name}/Dataset_{args.dataset}_percentage_{args.ds_percentage}_noise_{args.noise}_model_{args.model}_classifier_{args.classifier}_activation_{args.activation}_degree_{args.degree}_grid_{args.grid}_alp1_{args.alpha1}_alp2_{args.alpha2}_epoch_{args.num_epochs}_projection_seed_{args.seed}.log"
+        log_file = f"{folder_name}/Dataset_{args.dataset}_percentage_{args.ds_percentage}_noise_{args.noise}_model_{args.model}_classifier_{args.classifier}_activation_{args.activation}_degree_{args.degree}_grid_{args.grid}_alp1_{args.alpha1}_alp2_{args.alpha2}_epoch_{args.num_epochs}_projection_linear_seed_{args.seed}.log"
         # log_file = f"{args.dataset}_{args.model if args.mode == 'single' else 'mlp-tune'}_{args.classifier}.log"
     else:
         log_file = f"{folder_name}/Dataset_{args.dataset}_percentage_{args.ds_percentage}_noise_{args.noise}_model_{args.model}_classifier_{args.classifier}_activation_{args.activation}_degree_{args.degree}_grid_{args.grid}_alp1_{args.alpha1}_alp2_{args.alpha2}_epoch_{args.num_epochs}_seed_{args.seed}.log"
