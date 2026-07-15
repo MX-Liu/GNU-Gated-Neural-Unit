@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import math
 
 from typing import Literal
+from typing import Dict
 
 class ParametricSiLU(nn.Module):
     """SiLU with a trainable beta parameter.
@@ -234,7 +235,7 @@ class TrainableActivationLinear(nn.Module):
 
         return self.activation(x)
 
-    def activation_parameters(self) -> dict[str, torch.Tensor]:
+    def activation_parameters(self) -> Dict[str, torch.Tensor]:
         """Return the current learned activation parameters."""
         if isinstance(self.activation, nn.PReLU):
             return {
