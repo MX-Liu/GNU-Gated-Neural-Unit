@@ -144,7 +144,7 @@ def run_single_training(args, logger):
     
     model = get_model(
         model_name=args.model, num_classes=metadata['num_classes'],
-        transfer_learning=args.transfer_learning, freeze_layers=not args.fine_tune, classifier=args.classifier,alpha1=args.alpha1, alpha2=args.alpha2,projection=args.projection,fixed_alpha=args.fixed_alpha
+        transfer_learning=args.transfer_learning, freeze_layers=not args.fine_tune, classifier=args.classifier,alpha1=args.alpha1, alpha2=args.alpha2,projection=args.projection,fixed_alpha=args.fixed_alpha,dyanmic_alpha=args.dynamic_alpha
     ).to(device)
     logger.info(f"Model '{args.model}' initialized. Pre-trained: {args.transfer_learning}. Layers frozen: {not args.fine_tune}")
 
@@ -294,6 +294,7 @@ if __name__ == '__main__':
     parser.add_argument('--projection', action='store_true', help="Enable projection layers.")
     # ablation study parameters
     parser.add_argument('--fixed_alpha', action='store_true', help="Fix alpha values during training.")
+    parser.add_argument('--dynamic_alpha', action='store_true', help="Enable dynamic alpha values during training.")
     args = parser.parse_args()
     
     folder_name = 'logs'
@@ -303,6 +304,8 @@ if __name__ == '__main__':
         # log_file = f"{args.dataset}_{args.model if args.mode == 'single' else 'mlp-tune'}_{args.classifier}.log"
     elif args.fixed_alpha:
         log_file = f"{folder_name}/Dataset_{args.dataset}_percentage_{args.ds_percentage}_noise_{args.noise}_model_{args.model}_classifier_{args.classifier}_activation_{args.activation}_degree_{args.degree}_grid_{args.grid}_alp1_{args.alpha1}_alp2_{args.alpha2}_epoch_{args.num_epochs}_fixed_alpha_seed_{args.seed}.log"
+    elif args.dynamic_alpha:
+        log_file = f"{folder_name}/Dataset_{args.dataset}_percentage_{args.ds_percentage}_noise_{args.noise}_model_{args.model}_classifier_{args.classifier}_activation_{args.activation}_degree_{args.degree}_grid_{args.grid}_alp1_{args.alpha1}_alp2_{args.alpha2}_epoch_{args.num_epochs}_dynamic_alpha_seed_{args.seed}.log"
     else:
         log_file = f"{folder_name}/Dataset_{args.dataset}_percentage_{args.ds_percentage}_noise_{args.noise}_model_{args.model}_classifier_{args.classifier}_activation_{args.activation}_degree_{args.degree}_grid_{args.grid}_alp1_{args.alpha1}_alp2_{args.alpha2}_epoch_{args.num_epochs}_seed_{args.seed}.log"
     logger = setup_logger(log_file)
