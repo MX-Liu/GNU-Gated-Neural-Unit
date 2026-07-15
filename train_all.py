@@ -37,7 +37,8 @@ def hp_tuning(hp):
                 '--ds_percentage', str(hp['ds_percentage']),
                 '--grid', str(hp['grid']),
                 '--degree', str(hp['degree']),
-                '--noise', str(hp['noise'])
+                '--noise', str(hp['noise']),
+                '--fixed_alpha' if hp['fixed_alpha'] else ''
                 ]
     
 
@@ -64,6 +65,7 @@ if __name__ == "__main__":
     parser.add_argument('--grid', type=int, default=5, help='Grid size for MLP-KAN classifier.')
     parser.add_argument('--degree', type=int, default=3, help='Degree for polynomial features in MLP-KAN classifier.')
     parser.add_argument('--noise', type=float, default=0.0, help='Noise level for datasets.')
+    parser.add_argument('--fixed_alpha', action='store_true', help="Fix alpha values during training.")
     args = parser.parse_args()
     
     
@@ -89,6 +91,7 @@ if __name__ == "__main__":
             "grid": args.grid,
             "degree": args.degree,
             "noise": args.noise,
+            "fixed_alpha": args.fixed_alpha
         }
         hp.append(hp_dic1)
             
