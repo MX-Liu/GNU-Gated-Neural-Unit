@@ -6,6 +6,262 @@ import torch
 import torch.nn.functional as F
 import math
 
+from typing import Literal
+
+class ParametricSiLU(nn.Module):
+    """SiLU with a trainable beta parameter.
+
+    Formula:
+        y = x * sigmoid(beta * x)
+
+    Parameters can be shared across all channels or learned independently
+    for each output feature.
+    """
+
+    def __init__(
+        self,
+        num_features: int,
+        channel_wise: bool = True,
+        beta_init: float = 1.0,
+        eps: float = 1e-6,
+    ) -> None:
+        super().__init__()
+
+        if num_features <= 0:
+            raise ValueError("num_features must be positive.")
+        if beta_init <= 0:
+            raise ValueError("beta_init must be positive.")
+
+        parameter_size = num_features if channel_wise else 1
+        raw_beta_init = math.log(math.expm1(beta_init))
+
+        self.raw_beta = nn.Parameter(
+            torch.full((parameter_size,), raw_beta_init)
+        )
+        self.eps = eps
+
+    @property
+    def beta(self) -> torch.Tensor:
+        return F.softplus(self.raw_beta) + self.eps
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        beta = self.beta
+
+        # Broadcast over all dimensions except the final feature dimension.
+        view_shape = [1] * (x.dim() - 1) + [beta.numel()]
+        beta = beta.view(*view_shape)
+
+        return x * torch.sigmoid(beta * x)
+
+
+class Snake(nn.Module):
+    """Trainable Snake activation.
+
+    Formula:
+        y = x + sin(alpha * x)^2 / alpha
+
+    Alpha can be shared or learned independently for each output feature.
+    """
+
+    def __init__(
+        self,
+        num_features: int,
+        channel_wise: bool = True,
+        alpha_init: float = 1.0,
+        eps: float = 1e-6,
+    ) -> None:
+        super().__init__()
+
+        if num_features <= 0:
+            raise ValueError("num_features must be positive.")
+        if alpha_init <= 0:
+            raise ValueError("alpha_init must be positive.")
+
+        parameter_size = num_features if channel_wise else 1
+        raw_alpha_init = math.log(math.expm1(alpha_init))
+
+        self.raw_alpha = nn.Parameter(
+            torch.full((parameter_size,), raw_alpha_init)
+        )
+        self.eps = eps
+
+    @property
+    def alpha(self) -> torch.Tensor:
+        return F.softplus(self.raw_alpha) + self.eps
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        alpha = self.alpha
+
+        # Broadcast over all dimensions except the final feature dimension.
+        view_shape = [1] * (x.dim() - 1) + [alpha.numel()]
+        alpha = alpha.view(*view_shape)
+
+        return x + torch.sin(alpha * x).square() / alpha
+
+
+class TrainableActivationLinear(nn.Module):
+    """A conventional linear layer followed by a selectable trainable activation.
+
+    Architecture:
+        input -> nn.Linear -> trainable activation
+
+    Supported activation types:
+        - "prelu": PyTorch nn.PReLU
+        - "psilu": Parametric SiLU with trainable beta
+        - "snake": Snake with trainable alpha
+        - "identity" or "none": no activation, useful as a linear baseline
+
+    The class supports input tensors whose final dimension is `in_features`,
+    including:
+        (batch, in_features)
+        (batch, sequence_length, in_features)
+        (..., in_features)
+    """
+
+    SUPPORTED_ACTIVATIONS = {
+        "prelu",
+        "psilu",
+        "parametric_silu",
+        "snake",
+        "identity",
+        "none",
+    }
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        activation_type: Literal[
+            "prelu",
+            "psilu",
+            "parametric_silu",
+            "snake",
+            "identity",
+            "none",
+        ] = "prelu",
+        bias: bool = True,
+        channel_wise: bool = True,
+        prelu_init: float = 0.25,
+        beta_init: float = 1.0,
+        alpha_init: float = 1.0,
+    ) -> None:
+        super().__init__()
+
+        if in_features <= 0:
+            raise ValueError("in_features must be positive.")
+        if out_features <= 0:
+            raise ValueError("out_features must be positive.")
+
+        activation_type = activation_type.lower()
+        if activation_type not in self.SUPPORTED_ACTIVATIONS:
+            raise ValueError(
+                f"Unsupported activation_type={activation_type!r}. "
+                f"Choose from {sorted(self.SUPPORTED_ACTIVATIONS)}."
+            )
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.activation_type = activation_type
+        self.channel_wise = channel_wise
+
+        self.linear = nn.Linear(
+            in_features=in_features,
+            out_features=out_features,
+            bias=bias,
+        )
+
+        if activation_type == "prelu":
+            # One trainable negative slope per output feature when channel_wise=True.
+            num_parameters = out_features if channel_wise else 1
+            self.activation = nn.PReLU(
+                num_parameters=num_parameters,
+                init=prelu_init,
+            )
+
+        elif activation_type in {"psilu", "parametric_silu"}:
+            self.activation = ParametricSiLU(
+                num_features=out_features,
+                channel_wise=channel_wise,
+                beta_init=beta_init,
+            )
+
+        elif activation_type == "snake":
+            self.activation = Snake(
+                num_features=out_features,
+                channel_wise=channel_wise,
+                alpha_init=alpha_init,
+            )
+
+        else:
+            self.activation = nn.Identity()
+
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        """Reset the linear layer and activation parameters."""
+        self.linear.reset_parameters()
+
+        if isinstance(self.activation, nn.PReLU):
+            nn.init.constant_(self.activation.weight, 0.25)
+
+        elif isinstance(self.activation, ParametricSiLU):
+            raw_beta_init = math.log(math.expm1(1.0))
+            nn.init.constant_(self.activation.raw_beta, raw_beta_init)
+
+        elif isinstance(self.activation, Snake):
+            raw_alpha_init = math.log(math.expm1(1.0))
+            nn.init.constant_(self.activation.raw_alpha, raw_alpha_init)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if x.size(-1) != self.in_features:
+            raise ValueError(
+                f"Expected the final input dimension to be {self.in_features}, "
+                f"but received shape {tuple(x.shape)}."
+            )
+
+        x = self.linear(x)
+
+        # nn.PReLU interprets dimension 1 as channels. For tensors such as
+        # (batch, sequence, features), move the final feature dimension to
+        # dimension 1, apply PReLU, and move it back.
+        if isinstance(self.activation, nn.PReLU):
+            if x.dim() == 2:
+                return self.activation(x)
+
+            x = x.movedim(-1, 1)
+            x = self.activation(x)
+            return x.movedim(1, -1)
+
+        return self.activation(x)
+
+    def activation_parameters(self) -> dict[str, torch.Tensor]:
+        """Return the current learned activation parameters."""
+        if isinstance(self.activation, nn.PReLU):
+            return {
+                "negative_slope": self.activation.weight.detach().clone()
+            }
+
+        if isinstance(self.activation, ParametricSiLU):
+            return {
+                "beta": self.activation.beta.detach().clone()
+            }
+
+        if isinstance(self.activation, Snake):
+            return {
+                "alpha": self.activation.alpha.detach().clone()
+            }
+
+        return {}
+
+    def extra_repr(self) -> str:
+        return (
+            f"in_features={self.in_features}, "
+            f"out_features={self.out_features}, "
+            f"activation_type={self.activation_type!r}, "
+            f"channel_wise={self.channel_wise}, "
+            f"bias={self.linear.bias is not None}"
+        )
+    
 
 class KANLinear(torch.nn.Module):
     def __init__(
@@ -308,7 +564,8 @@ class GNUNetLinear(torch.nn.Module):
         projection = False,
         fixed_alpha=False,
         dyanmic_alpha=False,
-        independent_alpha=False
+        independent_alpha=False,
+        trainable_activation = "none"
     ):
         super(GNUNetLinear, self).__init__()
         self.in_features = in_features
@@ -345,6 +602,7 @@ class GNUNetLinear(torch.nn.Module):
         self.fixed_alpha = fixed_alpha
         self.dyanmic_alpha = dyanmic_alpha
         self.independent_alpha = independent_alpha
+        self.trainable_activation = trainable_activation
 
         if self.dyanmic_alpha:
             self.dynamic_layer = nn.Linear(2*out_features, 2)
@@ -362,6 +620,15 @@ class GNUNetLinear(torch.nn.Module):
             self.alpha1 = torch.nn.Parameter(torch.full((1,), alpha1),requires_grad=True); 
             self.alpha2 = torch.nn.Parameter(torch.full((1,), alpha2),requires_grad=True); 
         
+        if self.trainable_activation != "none":
+            self.activation_layer = TrainableActivationLinear(
+                in_features=self.in_features,
+                out_features=self.out_features,
+                activation_type=self.trainable_activation,
+                bias=True,
+                channel_wise=True,
+            )
+
         self.projection = projection
 
         if self.projection:
@@ -479,10 +746,15 @@ class GNUNetLinear(torch.nn.Module):
         x = x.reshape(-1, self.in_features)
 
         base_output = F.linear(self.base_activation(x), self.base_weight)
-        spline_output = F.linear(
-            self.b_splines(x).view(x.size(0), -1),
-            self.scaled_spline_weight.view(self.out_features, -1),
-        )
+
+        
+        if self.trainable_activation != "none":
+            spline_output = self.activation_layer(x)
+        else:
+            spline_output = F.linear(
+                self.b_splines(x).view(x.size(0), -1),
+                self.scaled_spline_weight.view(self.out_features, -1),
+            )
 
 
         gammas = torch.cat([self.alpha1, self.alpha2]); 
@@ -612,7 +884,8 @@ class GNUNet(torch.nn.Module):
         projection=False,
         fixed_alpha=False,
         dyanmic_alpha=False,
-        independent_alpha=False
+        independent_alpha=False,
+        trainable_activation = "none"
     ):
         super(GNUNet, self).__init__()
         self.grid_size = grid_size
@@ -637,7 +910,8 @@ class GNUNet(torch.nn.Module):
                     projection = projection,
                     fixed_alpha = fixed_alpha,
                     dyanmic_alpha = dyanmic_alpha,
-                    independent_alpha = independent_alpha
+                    independent_alpha = independent_alpha,
+                    trainable_activation = trainable_activation
                 )
             )
 
@@ -694,7 +968,7 @@ class SimpleCNN(nn.Module):
         if self.fc.in_features != out.shape[1]: self.fc = nn.Linear(out.shape[1], self.fc.out_features).to(x.device)
         return self.fc(out)
 
-def get_model(model_name, num_classes, input_size=None, transfer_learning=True, freeze_layers=True,classifier='mlp', activation='silu',grid_size=5, spline_order=3, alpha1=0.5, alpha2=0.5, projection=False,fixed_alpha=False,dyanmic_alpha=False,independent_alpha=False):
+def get_model(model_name, num_classes, input_size=None, transfer_learning=True, freeze_layers=True,classifier='mlp', activation='silu',grid_size=5, spline_order=3, alpha1=0.5, alpha2=0.5, projection=False,fixed_alpha=False,dyanmic_alpha=False,independent_alpha=False,trainable_activation='none'):
     if model_name == 'mlp':
         return SimpleMLP(input_size=input_size, hidden_size=32, num_classes=num_classes) # hidden_size is a placeholder
     elif model_name == 'simple_cnn':
@@ -741,7 +1015,7 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             elif classifier == 'kan':
                 model.fc = KAN(layers_hidden=[model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
-                model.fc = GNUNet([model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha)
+                model.fc = GNUNet([model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha,trainable_activation=trainable_activation)
 
         elif 'vgg' in model_name:
             if classifier == 'mlp':
@@ -750,7 +1024,7 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             elif classifier == 'kan':
                 model.classifier[6] = KAN([model.classifier[6].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
-                model.classifier[6] = GNUNet([model.classifier[6].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha)
+                model.classifier[6] = GNUNet([model.classifier[6].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha,trainable_activation=trainable_activation)
             else:
                 raise ValueError(f"Classifier '{classifier}' not supported for VGG model.")
             
@@ -761,7 +1035,7 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             elif classifier == 'kan':
                 model.classifier = KAN([model.classifier.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
-                model.classifier = GNUNet([model.classifier.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha)
+                model.classifier = GNUNet([model.classifier.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha,trainable_activation=trainable_activation)
             else:
                 raise ValueError(f"Classifier '{classifier}' not supported for DenseNet model.")
         elif model_name == 'mobilenet_v2':
@@ -771,7 +1045,7 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             elif classifier == 'kan':
                 model.classifier[1] = KAN([model.classifier[1].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
-                model.classifier = GNUNet([model.classifier[1].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha)
+                model.classifier = GNUNet([model.classifier[1].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha,trainable_activation=trainable_activation)
         
         elif model_name == 'googlenet':
             if classifier == 'mlp':
@@ -780,6 +1054,6 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             elif classifier == 'kan':
                 model.fc = KAN(layers_hidden=[model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
-                model.fc = GNUNet([model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha)
+                model.fc = GNUNet([model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha,trainable_activation=trainable_activation)
                 
     return model
