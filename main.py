@@ -144,7 +144,7 @@ def run_single_training(args, logger):
     
     model = get_model(
         model_name=args.model, num_classes=metadata['num_classes'],
-        transfer_learning=args.transfer_learning, freeze_layers=not args.fine_tune, classifier=args.classifier,alpha1=args.alpha1, alpha2=args.alpha2,projection=args.projection
+        transfer_learning=args.transfer_learning, freeze_layers=not args.fine_tune, classifier=args.classifier,alpha1=args.alpha1, alpha2=args.alpha2,projection=args.projection,fixed_alpha=args.fixed_alpha
     ).to(device)
     logger.info(f"Model '{args.model}' initialized. Pre-trained: {args.transfer_learning}. Layers frozen: {not args.fine_tune}")
 
@@ -292,6 +292,8 @@ if __name__ == '__main__':
     parser.add_argument('--patience', type=int, default=10, help='Patience for early stopping')
     # parser.add_argument()
     parser.add_argument('--projection', action='store_true', help="Enable projection layers.")
+    # ablation study parameters
+    parser.add_argument('--fixed_alpha', action='store_true', help="Fix alpha values during training.")
     args = parser.parse_args()
     
     folder_name = 'logs'
