@@ -54,7 +54,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="PyTorch Classification Template")
     
-    parser.add_argument('--dataset', type=str, default='cifar10', choices=['iris', 'mnist', 'cifar10'])
+    parser.add_argument('--dataset', type=str, default='cifar10', choices=['iris', 'mnist', 'cifar100'])
     parser.add_argument('--num_epochs', type=int, default=20, help='Number of training epochs')
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--classifier', type=str, default='mlp', choices=['linear', 'mlp', 'kan', 'gnu'], help='Classifier type for MLP-KAN.')
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     hp = []
 
     # data_name_list = ["dg", "uschad", "pamap2", "rw", "skodar", "dsads", "hapt", "oppo", "wisdm"]
-    model_list = ['resnet18','resnet34', 'resnet50', 'vgg11', 'vgg16', 'densenet121', 'densenet201', 'densenet161', 'mobilenet_v2', 'googlenet']
+    model_list = ['resnet18','resnet34', 'resnet50', 'vgg16', 'densenet121', 'densenet201', 'densenet161', 'mobilenet_v2', 'googlenet']
 
     
     JOBS_PER_GPU = len(model_list)
