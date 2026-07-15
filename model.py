@@ -307,7 +307,8 @@ class GNUNetLinear(torch.nn.Module):
         alpha2=0.5,
         projection = False,
         fixed_alpha=False,
-        dyanmic_alpha=False
+        dyanmic_alpha=False,
+        independent_alpha=False
     ):
         super(GNUNetLinear, self).__init__()
         self.in_features = in_features
@@ -343,6 +344,7 @@ class GNUNetLinear(torch.nn.Module):
         self.grid_eps = grid_eps
         self.fixed_alpha = fixed_alpha
         self.dyanmic_alpha = dyanmic_alpha
+        self.independent_alpha = independent_alpha
 
         if self.dyanmic_alpha:
             self.dynamic_layer = nn.Linear(2*out_features, 2)
@@ -500,7 +502,10 @@ class GNUNetLinear(torch.nn.Module):
         elif self.fixed_alpha:
             p = gammas
         else:
-            p = 2*F.softmax(gammas, dim=0)
+            if self.independent_alpha:
+                p = gammas
+            else:
+                p = 2*F.softmax(gammas, dim=0)
 
         if self.dyanmic_alpha:
             output1 = p_base*base_output 
@@ -606,7 +611,8 @@ class GNUNet(torch.nn.Module):
         alpha2=0.5,
         projection=False,
         fixed_alpha=False,
-        dyanmic_alpha=False
+        dyanmic_alpha=False,
+        independent_alpha=False
     ):
         super(GNUNet, self).__init__()
         self.grid_size = grid_size
@@ -630,7 +636,8 @@ class GNUNet(torch.nn.Module):
                     alpha2 = alpha2,
                     projection = projection,
                     fixed_alpha = fixed_alpha,
-                    dyanmic_alpha = dyanmic_alpha
+                    dyanmic_alpha = dyanmic_alpha,
+                    independent_alpha = independent_alpha
                 )
             )
 
@@ -687,7 +694,7 @@ class SimpleCNN(nn.Module):
         if self.fc.in_features != out.shape[1]: self.fc = nn.Linear(out.shape[1], self.fc.out_features).to(x.device)
         return self.fc(out)
 
-def get_model(model_name, num_classes, input_size=None, transfer_learning=True, freeze_layers=True,classifier='mlp', activation='silu',grid_size=5, spline_order=3, alpha1=0.5, alpha2=0.5, projection=False,fixed_alpha=False,dyanmic_alpha=False):
+def get_model(model_name, num_classes, input_size=None, transfer_learning=True, freeze_layers=True,classifier='mlp', activation='silu',grid_size=5, spline_order=3, alpha1=0.5, alpha2=0.5, projection=False,fixed_alpha=False,dyanmic_alpha=False,independent_alpha=False):
     if model_name == 'mlp':
         return SimpleMLP(input_size=input_size, hidden_size=32, num_classes=num_classes) # hidden_size is a placeholder
     elif model_name == 'simple_cnn':
@@ -734,7 +741,7 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             elif classifier == 'kan':
                 model.fc = KAN(layers_hidden=[model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
-                model.fc = GNUNet([model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha)
+                model.fc = GNUNet([model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha)
 
         elif 'vgg' in model_name:
             if classifier == 'mlp':
@@ -743,7 +750,7 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             elif classifier == 'kan':
                 model.classifier[6] = KAN([model.classifier[6].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
-                model.classifier[6] = GNUNet([model.classifier[6].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha)
+                model.classifier[6] = GNUNet([model.classifier[6].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha)
             else:
                 raise ValueError(f"Classifier '{classifier}' not supported for VGG model.")
             
@@ -754,7 +761,7 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             elif classifier == 'kan':
                 model.classifier = KAN([model.classifier.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
-                model.classifier = GNUNet([model.classifier.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha)
+                model.classifier = GNUNet([model.classifier.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha)
             else:
                 raise ValueError(f"Classifier '{classifier}' not supported for DenseNet model.")
         elif model_name == 'mobilenet_v2':
@@ -764,7 +771,7 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             elif classifier == 'kan':
                 model.classifier[1] = KAN([model.classifier[1].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
-                model.classifier = GNUNet([model.classifier[1].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha  )
+                model.classifier = GNUNet([model.classifier[1].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha)
         
         elif model_name == 'googlenet':
             if classifier == 'mlp':
@@ -773,6 +780,6 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             elif classifier == 'kan':
                 model.fc = KAN(layers_hidden=[model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
-                model.fc = GNUNet([model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha)
+                model.fc = GNUNet([model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=activation_dict[activation], alpha1=alpha1, alpha2=alpha2, projection=projection,fixed_alpha=fixed_alpha,dyanmic_alpha=dyanmic_alpha, independent_alpha=independent_alpha)
                 
     return model
