@@ -1011,8 +1011,8 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             # model.fc = nn.Linear(model.fc.in_features, num_classes)
             if classifier == 'mlp':
                 # model.fc = nn.Linear(model.fc.in_features, num_classes)
-                # model.fc = SimpleMLP(input_size=model.fc.in_features, hidden_size=num_classes, num_classes=num_classes)
-                model.fc = nn.Linear(model.fc.in_features, num_classes)
+                model.fc = SimpleMLP(input_size=model.fc.in_features, hidden_size=1400, num_classes=num_classes)
+                # model.fc = nn.Linear(model.fc.in_features, num_classes)
             elif classifier == 'kan':
                 model.fc = KAN(layers_hidden=[model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
@@ -1020,8 +1020,8 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
 
         elif 'vgg' in model_name:
             if classifier == 'mlp':
-                model.classifier[6] = nn.Linear(model.classifier[6].in_features,num_classes)
-                # model.classifier[6] = SimpleMLP(input_size=model.classifier[6].in_features, hidden_size=num_classes, num_classes=num_classes) 
+                # model.classifier[6] = nn.Linear(model.classifier[6].in_features,num_classes)
+                model.classifier[6] = SimpleMLP(input_size=model.classifier[6].in_features, hidden_size=1400, num_classes=num_classes) 
             elif classifier == 'kan':
                 model.classifier[6] = KAN([model.classifier[6].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
@@ -1031,8 +1031,9 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
             
         elif 'densenet' in model_name:
             if classifier == 'mlp':
-                model.classifier = nn.Linear(model.classifier.in_features, num_classes)
+                # model.classifier = nn.Linear(model.classifier.in_features, num_classes)
                 # model.classifier = SimpleMLP(input_size=model.classifier.in_features, hidden_size=num_classes, num_classes=num_classes)
+                model.classifier = SimpleMLP(input_size=model.classifier.in_features, hidden_size=1400, num_classes=num_classes)
             elif classifier == 'kan':
                 model.classifier = KAN([model.classifier.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
@@ -1041,8 +1042,9 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
                 raise ValueError(f"Classifier '{classifier}' not supported for DenseNet model.")
         elif model_name == 'mobilenet_v2':
             if classifier == 'mlp':
-                model.classifier[1] = nn.Linear(model.classifier[1].in_features,num_classes)
+                # model.classifier[1] = nn.Linear(model.classifier[1].in_features,num_classes)
                 # model.classifier[1] = SimpleMLP(input_size=model.classifier[1].in_features, hidden_size=num_classes, num_classes=num_classes)
+                model.classifier[1] = SimpleMLP(input_size=model.classifier[1].in_features, hidden_size=1400, num_classes=num_classes)
             elif classifier == 'kan':
                 model.classifier[1] = KAN([model.classifier[1].in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
@@ -1050,8 +1052,8 @@ def get_model(model_name, num_classes, input_size=None, transfer_learning=True, 
         
         elif model_name == 'googlenet':
             if classifier == 'mlp':
-                model.fc = nn.Linear(model.fc.in_features,num_classes)
-                # model.fc = SimpleMLP(input_size=model.fc.in_features, hidden_size=num_classes, num_classes=num_classes)
+                # model.fc = nn.Linear(model.fc.in_features,num_classes)
+                model.fc = SimpleMLP(input_size=model.fc.in_features, hidden_size=1400, num_classes=num_classes)
             elif classifier == 'kan':
                 model.fc = KAN(layers_hidden=[model.fc.in_features, num_classes], grid_size=grid_size, spline_order=spline_order, base_activation=torch.nn.SiLU)
             elif classifier == 'gnu':
